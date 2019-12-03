@@ -15,8 +15,7 @@ services:
 #      - --file.filename=/etc/traefik/dyn-old.toml
       - --entrypoints=Name:http Address::8000
     volumes:
-#      - ./conf/dyn-old.toml:/etc/traefik/dyn-old.toml:ro
-      - ./conf/dyn-old.toml:/etc/pistache/dyn-old.toml:ro
+      - ./conf/dyn-old.toml:/etc/traefik/dyn-old.toml:ro
 #      - ./conf/:/etc/traefik/:ro
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -46,12 +45,62 @@ services:
       traefik.http.routers.app.rule: Host(`app.docker.localhost`)
       traefik.http.routers.app.entrypoints: web
 
-  watcher:
+  # mounted file, watch file
+  mf-wf:
     image: golang:1.13.4-alpine3.10
-    command: go run app.go
+    command: go run app.go --target=file  --reload=true
     volumes:
-#      - .:/go/src/app
       - ./app.go:/go/src/app/app.go
       - ./go.mod:/go/src/app/go.mod
       - ./conf/dyn.toml:/etc/traefik/dyn.toml:rw
+    working_dir: /go/src/app
+
+  # mounted file, watch dir
+  mf-wd:
+    image: golang:1.13.4-alpine3.10
+    command: go run app.go --target=dir
+    volumes:
+      - ./app.go:/go/src/app/app.go
+      - ./go.mod:/go/src/app/go.mod
+      - ./conf/dyn.toml:/etc/traefik/dyn.toml:rw
+    working_dir: /go/src/app
+
+  # mounted file, watch both
+  mf-wb:
+    image: golang:1.13.4-alpine3.10
+    command: go run app.go --target=both --reload=true
+    volumes:
+      - ./app.go:/go/src/app/app.go
+      - ./go.mod:/go/src/app/go.mod
+      - ./conf/dyn.toml:/etc/traefik/dyn.toml:rw
+    working_dir: /go/src/app
+
+ # mounted dir, watch file
+  md-wf:
+    image: golang:1.13.4-alpine3.10
+    command: go run app.go --target=file
+    volumes:
+      - ./app.go:/go/src/app/app.go
+      - ./go.mod:/go/src/app/go.mod
+      - ./conf/:/etc/traefik/:rw
+    working_dir: /go/src/app
+
+  # mounted dir, watch dir
+  md-wd:
+    image: golang:1.13.4-alpine3.10
+    command: go run app.go --target=dir
+    volumes:
+      - ./app.go:/go/src/app/app.go
+      - ./go.mod:/go/src/app/go.mod
+      - ./conf/:/etc/traefik/:rw
+    working_dir: /go/src/app
+
+  # mounted dir, watch both
+  md-wb:
+    image: golang:1.13.4-alpine3.10
+    command: go run app.go --target=both --reload=true
+    volumes:
+      - ./app.go:/go/src/app/app.go
+      - ./go.mod:/go/src/app/go.mod
+      - ./conf/:/etc/traefik/:rw
     working_dir: /go/src/app

@@ -1,25 +1,45 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	"github.com/fsnotify/fsnotify"
 )
 
 func main() {
-	err := newWatcher()
+	var target = flag.String("target", "file", "use file, dir or both as watcher target")
+	var reload = flag.Bool("reload", false, "reload the watcher if true")
+	flag.Parse()
+
+	fmt.Println("Started with target: '", *target, "' and reload: '", *reload, "'")
+
+	var filePaths []string
+	fileToWatch := "/etc/traefik/dyn.toml"
+
+	switch *target {
+	case "dir":
+		filePaths = []string{path.Dir(fileToWatch)}
+	case "both":
+		filePaths = []string{fileToWatch, path.Dir(fileToWatch)}
+	case "file":
+		filePaths = []string{fileToWatch}
+	default:
+		fmt.Println("error: unknown argument: '", *target, "'. Choose in the following: 'file', 'dir' or 'both'")
+		os.Exit(1)
+	}
+
+	err := newWatcher(filePaths, *reload)
 	if err != nil {
 		fmt.Println("error: unable to create a file watcher:", err)
 		os.Exit(1)
 	}
 }
 
-func newWatcher() error {
-	//filePath := path.Dir("/etc/traefik/dyn.toml")
-	filePath := "/etc/traefik/dyn.toml"
-
+func newWatcher(paths []string, reload bool) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -27,7 +47,7 @@ func newWatcher() error {
 	defer watcher.Close()
 
 	done := make(chan bool)
-	go func() {
+	go func(reload bool) {
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -48,20 +68,14 @@ func newWatcher() error {
 				case fsnotify.Rename:
 					log.Println("Moved")
 
-					// TODO take care of the link cf certdumper
-					//respawnFile(event.Name)
+					if reload {
+						if err := watcher.Remove("/etc/traefik/dyn.toml"); err != nil {
+							log.Fatal(err)
+							return
+						}
 
-					// add the file back to watcher, since it is removed from it
-					// when file is moved or deleted
-					//log.Printf("add to watcher file:  %s\n", filePath)
-					// add appears to be concurrently safe so calling from multiple go routines is ok
-					//err = watcher.Add(filePath)
-					//if err != nil {
-					//	log.Fatal(err)
-					//}
-
-					// there is  not need to break the loop
-					// we just continue waiting for events from the same watcher
+						watcher.Add("/etc/traefik/dyn.toml")
+					}
 
 				}
 			case err, ok := <-watcher.Errors:
@@ -71,27 +85,15 @@ func newWatcher() error {
 				log.Println("error:", err)
 			}
 		}
-	}()
+	}(reload)
 
-	err = watcher.Add(filePath)
-	if err != nil {
-		log.Fatal(err)
+	for _, path := range paths {
+		err = watcher.Add(path)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	<-done
 
 	return nil
 }
-
-//func respawnFile(filepath string) {
-//	log.Printf("re creating file %s\n", filepath)
-//
-//	// you just need the os.Create()
-//	respawned, err := os.Create(filepath)
-//	if err != nil {
-//		log.Fatalf("Err re-spawning file: %v", filepath)
-//	}
-//	defer respawned.Close()
-//
-//	// there is no need to call monitorFile again, it never returns
-//	// the call to "go monitorFile(filepath)" was causing another go routine leak
-//}
