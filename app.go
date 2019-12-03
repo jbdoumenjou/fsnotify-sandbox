@@ -73,7 +73,7 @@ func newWatcher(paths []string, reload bool) error {
 							log.Fatal(err)
 							return
 						}
-
+						fmt.Println("Reload /etc/traefik/dyn.toml")
 						watcher.Add("/etc/traefik/dyn.toml")
 					}
 

@@ -1,54 +1,10 @@
 version: '3.5'
 
 services:
-
-  old:
-    image: traefik:v1.7
-    ports:
-      - '8000:8000'
-      - '8800:8080'
-    command:
-      - --logLevel=DEBUG
-      - --api
-      - --file
-      - --file.filename=/etc/pistache/dyn-old.toml
-#      - --file.filename=/etc/traefik/dyn-old.toml
-      - --entrypoints=Name:http Address::8000
-    volumes:
-      - ./conf/dyn-old.toml:/etc/traefik/dyn-old.toml:ro
-#      - ./conf/:/etc/traefik/:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  traefik:
-#    image: traefik:v2.0.5
-    image: containous/traefik:latest
-    ports:
-      - '80:80'
-      - '8080:8080'
-    command:
-      - --log.level=DEBUG
-      - --api
-      - --api.insecure
-      - --providers.file.filename=/etc/traefik/dyn.toml
-      - --entrypoints.web.address=:80
-      - --providers.docker.exposedbydefault=false
-    volumes:
-      - ./conf/dyn.toml:/etc/traefik/dyn.toml:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  app:
-    image: containous/whoami:v1.4.0
-    ports:
-      - 9000:80
-    labels:
-      traefik.enable: true
-      traefik.http.routers.app.rule: Host(`app.docker.localhost`)
-      traefik.http.routers.app.entrypoints: web
-
   # mounted file, watch file
   mf-wf:
     image: golang:1.13.4-alpine3.10
-    command: go run app.go --target=file  --reload=true
+    command: go run app.go --target=file
     volumes:
       - ./app.go:/go/src/app/app.go
       - ./go.mod:/go/src/app/go.mod
@@ -68,7 +24,7 @@ services:
   # mounted file, watch both
   mf-wb:
     image: golang:1.13.4-alpine3.10
-    command: go run app.go --target=both --reload=true
+    command: go run app.go --target=both
     volumes:
       - ./app.go:/go/src/app/app.go
       - ./go.mod:/go/src/app/go.mod
@@ -98,7 +54,7 @@ services:
   # mounted dir, watch both
   md-wb:
     image: golang:1.13.4-alpine3.10
-    command: go run app.go --target=both --reload=true
+    command: go run app.go --target=both
     volumes:
       - ./app.go:/go/src/app/app.go
       - ./go.mod:/go/src/app/go.mod
